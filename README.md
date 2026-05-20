@@ -1,18 +1,58 @@
 # Stock Market Signal Tracker
 
-A Python, DuckDB, SQL, and Plotly project that ingests weekly adjusted stock market data, calculates rolling market signals, and backtests mean-reversion strategies across large-cap equities, ETFs, and selected high-volatility tickers.
+A Python + DuckDB project that ingests weekly adjusted stock data, calculates rolling market signals, and backtests mean-reversion strategies across 135+ equities and ETFs.
 
-This project was built as a repeatable market research workflow: collect data, store it locally, calculate indicators with SQL, test signal performance, and visualize results in JupyterLab.
+This project was built to demonstrate a repeatable analytics workflow: automated data ingestion, local database storage, SQL-based feature engineering, strategy backtesting, and interactive analysis in JupyterLab.
 
 ---
 
-## Project Overview
+## Overview
 
-The Quantitative Market Signal Scanner analyzes weekly stock behavior across a rotating universe of 135+ symbols, including top SPY holdings, ETFs, and selected individual stocks.
+The scanner tracks weekly OHLCV data from the Alpha Vantage API and analyzes whether extreme price deviations have historically led to profitable forward returns.
 
-The project uses Alpha Vantage weekly adjusted data to track OHLCV history and evaluate whether extreme price deviations historically led to profitable forward returns.
+The project focuses on:
 
-The main goal is to identify whether z-score based signals can help surface potential trading opportunities, especially mean-reversion setups after large downside moves.
+- Weekly adjusted stock data
+- Rolling z-score signals
+- Adjusted high / low deviation signals
+- Mean-reversion backtesting
+- Volatility regime analysis
+- Interactive Plotly visualizations
+- Automated daily data refreshes using Windows Task Scheduler
+
+---
+
+## Tech Stack
+
+- Python
+- DuckDB
+- SQL
+- Pandas
+- Plotly
+- JupyterLab
+- Alpha Vantage API# Stock Market Signal Tracker
+
+# Quantitative Market Signal Scanner
+
+A Python + DuckDB project that ingests weekly adjusted stock data, calculates rolling market signals, and backtests mean-reversion strategies across 135+ equities and ETFs.
+
+This project was built to demonstrate a repeatable analytics workflow: automated data ingestion, local database storage, SQL-based feature engineering, strategy backtesting, and interactive analysis in JupyterLab.
+
+---
+
+## Overview
+
+The scanner tracks weekly OHLCV data from the Alpha Vantage API and analyzes whether extreme price deviations have historically led to profitable forward returns.
+
+The project focuses on:
+
+- Weekly adjusted stock data
+- Rolling z-score signals
+- Adjusted high / low deviation signals
+- Mean-reversion backtesting
+- Volatility regime analysis
+- Interactive Plotly visualizations
+- Automated daily data refreshes using Windows Task Scheduler
 
 ---
 
@@ -31,242 +71,226 @@ The main goal is to identify whether z-score based signals can help surface pote
 
 ## Key Features
 
-### Automated Weekly Data Pipeline
+### Automated Data Pipeline
 
-The project includes a Python ingestion script that pulls weekly adjusted stock data from the Alpha Vantage API and stores it locally in DuckDB.
+The `update_prices.py` script pulls weekly adjusted data from Alpha Vantage and stores it in DuckDB.
 
 The pipeline:
 
-- Pulls weekly adjusted OHLCV data
-- Converts raw API responses into clean pandas DataFrames
-- Stores data in a DuckDB table
-- Uses SQL `MERGE` logic to update existing rows and insert new rows
-- Rotates through symbol batches to work within free API request limits
-- Can be scheduled to run automatically with Windows Task Scheduler
+- Fetches weekly adjusted OHLCV data
+- Converts API responses into clean pandas DataFrames
+- Uses DuckDB `MERGE` logic to insert or update rows
+- Rotates through symbol batches to stay within free API limits
+- Can run automatically once per day through Windows Task Scheduler
 
-Because Alpha Vantage's free tier limits daily API requests, the script rotates through a fixed batch of symbols each day instead of refreshing the full universe at once.
+### Local DuckDB Storage
+
+Market data is stored locally in a DuckDB database, making the project lightweight, portable, and easy to query with SQL.
+
+DuckDB is used to:
+
+- Store adjusted weekly price history
+- Query large datasets efficiently
+- Build rolling market features
+- Join signal tables with forward return data
+- Support repeatable analysis without relying on spreadsheets
+
+### SQL-Based Feature Engineering
+
+The project uses SQL queries to calculate historical signal metrics directly from the database.
+
+Signals include:
+
+- Rolling moving averages
+- Rolling standard deviations
+- Rolling z-scores
+- Price deviation from adjusted highs
+- Price deviation from adjusted lows
+- Forward returns over multiple time horizons
+- Volatility regime classifications
+
+This approach keeps the analytical logic transparent and reproducible.
+
+### Mean-Reversion Signal Testing
+
+The scanner evaluates whether unusually large price moves have historically been followed by positive or negative forward returns.
+
+Example signal questions include:
+
+- What happens after a stock trades far below its rolling average?
+- Do extreme negative z-scores tend to mean-revert?
+- Are adjusted low deviations useful entry signals?
+- Do results improve during certain volatility regimes?
+- Which symbols have shown the strongest historical signal behavior?
+
+### Backtesting Workflow
+
+The backtesting process compares signal events against future returns.
+
+The analysis can evaluate:
+
+- Average forward return after a signal
+- Median forward return after a signal
+- Win rate
+- Number of historical signal events
+- Best and worst forward returns
+- Performance by symbol
+- Performance by sector or ETF group
+- Performance by volatility regime
+
+The goal is not to predict future prices with certainty, but to identify historical patterns that may be worth further research.
+
+### Interactive JupyterLab Analysis
+
+The project includes notebook-based analysis using pandas and Plotly.
+
+Interactive charts can be used to explore:
+
+- Price history
+- Rolling z-score behavior
+- Signal event timing
+- Forward return distributions
+- Symbol-level comparisons
+- Volatility regime changes
+- Backtest summary results
+
+This makes the project useful for both systematic research and visual market review.
 
 ---
 
-## DuckDB Storage Layer
+## Project Structure
 
-Market data is stored locally in DuckDB using a structured schema:
-
-```sql
-symbol
-week_date
-open
-high
-low
-close
-adjusted_close
-volume
-dividend_amount
-
-DuckDB was used because it provides fast analytical queries, SQL window functions, and simple integration with Python and JupyterLab.
-
-Rolling Z-Score Analysis
-
-The project calculates rolling z-scores to measure how far a stock is trading from its recent average.
-
-z_score = (adjusted_close - rolling_mean) / rolling_std
-
-This helps identify unusually stretched conditions such as:
-
-z_score <= -2.5  → potential downside mean-reversion setup
-z_score >= 2.5   → potential upside extension
-
-The analysis includes:
-
-Adjusted close z-score
-Adjusted high z-score
-Adjusted low z-score
-Maximum absolute z-score
-Latest-week signal scanner tables
-Adjusted High and Low Signals
-
-To avoid mixing raw high/low prices with adjusted close values, the project adjusts weekly high and low values onto the same scale as adjusted close.
-
-adjusted_high = high * (adjusted_close / close)
-adjusted_low  = low  * (adjusted_close / close)
-
-This is especially important for stocks with historical splits, where raw highs and lows can distort z-score calculations.
-
-Mean-Reversion Backtesting
-
-The notebook backtests whether extreme z-score events historically led to positive forward returns.
-
-Example strategy logic:
-
-If z_score <= -threshold → buy signal
-If z_score >= threshold  → sell signal
-
-The backtest calculates:
-
-Forward return
-Strategy return
-Average return
-Median return
-Win rate
-Total strategy return
-Best trade
-Worst trade
-
-The strategy can be tested across:
-
-Multiple z-score thresholds
-Multiple holding periods
-Close-based signals
-Adjusted high/low signals
-Consecutive extreme-week signals
-Consecutive Extreme-Week Testing
-
-The project also tests whether a signal becomes more useful after remaining extreme for multiple weeks.
-
-Example:
-
-Enter only when adjusted close z-score stays below -2.5 for 2 consecutive weeks.
-
-This helps compare one-week extreme events against more persistent deviation regimes.
-
-Volatility Regime Analysis
-
-The project also explores volatility using weekly returns instead of price levels.
-
-weekly_return = adjusted_close / previous_adjusted_close - 1
-vol_20w = rolling standard deviation of weekly returns
-vol_52w = longer-term rolling volatility
-vol_ratio = vol_20w / vol_52w
-
-This helps distinguish between:
-
-Normal pullbacks
-Elevated-volatility breakdowns
-Potentially cleaner mean-reversion setups
-Example Research Questions
-
-This project is designed to answer questions such as:
-
-Which stocks are currently trading at extreme weekly z-scores?
-Do downside z-score events historically produce positive forward returns?
-Are buy signals more reliable than sell signals?
-Does requiring two consecutive extreme weeks improve signal quality?
-Do adjusted high/low z-score signals trigger more frequently than close-based signals?
-Does volatility regime affect signal performance?
-Which symbols show the strongest mean-reversion tendencies?
-Current Insights
-
-Early analysis suggests that downside deviation signals may be more useful than upside sell signals for large-cap equities.
-
-In practical terms:
-
-Low z-score events may behave more like mean-reversion buy opportunities.
-High z-score events may often reflect momentum rather than reliable short/sell opportunities.
-
-This reflects an important market behavior: large-cap equities often have positive long-term drift, so upside extensions may continue instead of immediately reversing.
-
-Project Structure
-market-signal-scanner/
-│
-├── README.md
-├── requirements.txt
-├── .gitignore
-│
-├── src/
-│   ├── api_client.py
-│   ├── update_prices.py
-│   └── config.py
-│
-├── notebooks/
-│   └── market_signal_analysis.ipynb
+```text
+stock-market-signal-tracker/
 │
 ├── data/
-│   └── .gitkeep
+│   └── market_data.duckdb
 │
-└── assets/
-    └── screenshots/
-How the Pipeline Works
-1. Pull Weekly Data
-python src/update_prices.py
+├── notebooks/
+│   └── signal_analysis.ipynb
+│
+├── scripts/
+│   └── update_prices.py
+│
+├── sql/
+│   ├── create_tables.sql
+│   ├── feature_engineering.sql
+│   └── backtest_queries.sql
+│
+├── requirements.txt
+├── README.md
+└── .gitignore
 
-The update script pulls a rotating batch of symbols each day and stores weekly adjusted data in DuckDB.
+---
 
-2. Analyze in JupyterLab
+## Key Features
 
-The Jupyter notebook connects to the DuckDB database and performs:
+### Automated Data Pipeline
 
-Indicator calculation
-Z-score scanning
-Mean-reversion backtesting
-Volatility analysis
-Interactive visualization
-3. Review Latest Signals
+The `update_prices.py` script pulls weekly adjusted data from Alpha Vantage and stores it in DuckDB.
 
-The latest-week scanner returns stocks with extreme readings across:
+The pipeline:
 
-Adjusted close z-score
-Adjusted high z-score
-Adjusted low z-score
-Example Backtest Output
+- Fetches weekly adjusted OHLCV data
+- Converts API responses into clean pandas DataFrames
+- Uses DuckDB `MERGE` logic to insert or update rows
+- Rotates through symbol batches to stay within free API limits
+- Can run automatically once per day through Windows Task Scheduler
 
-The backtest summary includes:
+### Local DuckDB Storage
 
-signal_label
-trades
-avg_return
-median_return
-win_rate
-total_return
-best_trade
-worst_trade
-threshold
+Market data is stored locally in a DuckDB database, making the project lightweight, portable, and easy to query with SQL.
 
-These metrics are used to compare signal quality across different thresholds and holding periods.
+DuckDB is used to:
 
-Interactive Visualizations
+- Store adjusted weekly price history
+- Query large datasets efficiently
+- Build rolling market features
+- Join signal tables with forward return data
+- Support repeatable analysis without relying on spreadsheets
 
-The notebook uses Plotly to create interactive charts, including:
+### SQL-Based Feature Engineering
 
-Average strategy return by z-score threshold
-Win rate by threshold
-Bollinger-style bands
-Adjusted close vs rolling mean
-Latest signal scanner tables
-Strategy performance comparisons
-Scheduling
+The project uses SQL queries to calculate historical signal metrics directly from the database.
 
-The update script can be scheduled with Windows Task Scheduler to run once per day.
+Signals include:
 
-The workflow is:
+- Rolling moving averages
+- Rolling standard deviations
+- Rolling z-scores
+- Price deviation from adjusted highs
+- Price deviation from adjusted lows
+- Forward returns over multiple time horizons
+- Volatility regime classifications
 
-Task Scheduler → update_prices.py → DuckDB database → JupyterLab analysis
+This approach keeps the analytical logic transparent and reproducible.
 
-This keeps data ingestion separate from notebook-based analysis.
+### Mean-Reversion Signal Testing
 
-Important Limitations
+The scanner evaluates whether unusually large price moves have historically been followed by positive or negative forward returns.
 
-This project is for research and education only.
+Example signal questions include:
 
-Known limitations:
+- What happens after a stock trades far below its rolling average?
+- Do extreme negative z-scores tend to mean-revert?
+- Are adjusted low deviations useful entry signals?
+- Do results improve during certain volatility regimes?
+- Which symbols have shown the strongest historical signal behavior?
 
-Uses a current symbol universe, which may introduce survivorship bias
-Alpha Vantage free tier limits daily API requests
-Weekly high/low signals are only fully known after the week closes
-Backtests do not currently include transaction costs, slippage, taxes, or liquidity constraints
-Signal results should not be interpreted as trading recommendations
-Future Improvements
+### Backtesting Workflow
 
-Potential next steps include:
+The backtesting process compares signal events against future returns.
 
-Add SPY-relative strength metrics
-Add sector ETF comparisons
-Add 52-week trend filters
-Add volatility-adjusted position sizing
-Add transaction cost assumptions
-Add train/test split to reduce overfitting
-Add email alerts for extreme z-score readings
-Build a dashboard view for the latest weekly scanner
-Move project to a linux environment for cleaner automation
-Resume Summary
+The analysis can evaluate:
 
-Built an automated weekly stock data pipeline using Python, DuckDB, SQL, and Alpha Vantage to track 135+ equities and ETFs, calculate rolling z-score deviation signals, and backtest mean-reversion strategies across multiple thresholds and holding periods. Created interactive Plotly visualizations and scanner tables to evaluate current market opportunities using adjusted-close, adjusted-high, and adjusted-low metrics.
+- Average forward return after a signal
+- Median forward return after a signal
+- Win rate
+- Number of historical signal events
+- Best and worst forward returns
+- Performance by symbol
+- Performance by sector or ETF group
+- Performance by volatility regime
+
+The goal is not to predict future prices with certainty, but to identify historical patterns that may be worth further research.
+
+### Interactive JupyterLab Analysis
+
+The project includes notebook-based analysis using pandas and Plotly.
+
+Interactive charts can be used to explore:
+
+- Price history
+- Rolling z-score behavior
+- Signal event timing
+- Forward return distributions
+- Symbol-level comparisons
+- Volatility regime changes
+- Backtest summary results
+
+This makes the project useful for both systematic research and visual market review.
+
+---
+
+## Project Structure
+
+```text
+stock-market-signal-tracker/
+│
+├── data/
+│   └── market_data.duckdb
+│
+├── notebooks/
+│   └── signal_analysis.ipynb
+│
+├── scripts/
+│   └── update_prices.py
+│
+├── sql/
+│   ├── create_tables.sql
+│   ├── feature_engineering.sql
+│   └── backtest_queries.sql
+│
+├── requirements.txt
+├── README.md
+└── .gitignore
